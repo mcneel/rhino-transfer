@@ -73,13 +73,14 @@ public sealed class MainForm : Form
     layout.AddRow(heading);
     layout.AddRow(note);
 
-    layout.AddRow(new Label { Text = "Rhino version" });
-    layout.AddRow(Versions);
-
     layout.AddRow(new TableLayout
     {
-      Spacing = new Size(8, 0),
-      Rows = { new TableRow(ExportButton, ImportButton) }
+      Spacing = new Size(8, 8),
+      Rows = {
+        new TableRow(new Label { Text = "Rhino version" }),
+        new TableRow(Versions),
+        new TableRow(new (ExportButton, true), new (ImportButton, true))
+        }
     });
 
     layout.AddRow(StatusLabel);
