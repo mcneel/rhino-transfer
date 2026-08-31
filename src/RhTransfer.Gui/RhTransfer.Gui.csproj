@@ -9,6 +9,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <UseWinForms>True</UseWinForms>
     <RootNamespace>RhTransfer.Gui</RootNamespace>
     <AssemblyName>RhinoSettingsTransfer</AssemblyName>
     <MacBundleName>Rhino Settings Transfer</MacBundleName>
