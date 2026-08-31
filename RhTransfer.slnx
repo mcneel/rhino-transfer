@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RhTransfer.Cli/RhTransfer.Cli.csproj" />
+    <Project Path="src/RhTransfer.Core/RhTransfer.Core.csproj" />
+    <Project Path="src/RhTransfer.Gui/RhTransfer.Gui.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RhTransfer.Core.Tests/RhTransfer.Core.Tests.csproj" />
+  </Folder>
+</Solution>
