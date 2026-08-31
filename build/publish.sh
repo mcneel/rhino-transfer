@@ -1,46 +1,51 @@
 #!/usr/bin/env bash
-# Builds the macOS app bundles and command line binaries into artifacts/.
+# Builds the macOS command line binary and app bundle for both architectures into artifacts/.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1)
 ARTIFACTS="artifacts"
+
 rm -rf "$ARTIFACTS"
 mkdir -p "$ARTIFACTS"
 
 for RID in osx-arm64 osx-x64; do
+  NAME="rh-transfer-$VERSION-$RID"
+  STAGE="$ARTIFACTS/$NAME"
+  GUI="$ARTIFACTS/.gui-$RID"
+
   echo "==> $RID"
+  mkdir -p "$STAGE"
 
   dotnet publish src/RhTransfer.Cli \
     -c Release -r "$RID" --self-contained \
     -p:PublishSingleFile=true \
-    -o "$ARTIFACTS/$RID" \
-    --nologo -v quiet
+    -o "$STAGE" --nologo -v quiet
 
   dotnet publish src/RhTransfer.Gui \
     -c Release -r "$RID" --self-contained \
-    -o "$ARTIFACTS/gui-$RID" \
-    --nologo -v quiet
+    -o "$GUI" --nologo -v quiet
 
-  APP=$(find "$ARTIFACTS/gui-$RID" -maxdepth 2 -name "*.app" -print -quit)
-  if [ -n "$APP" ]; then
-    cp -R "$APP" "$ARTIFACTS/$RID/"
-  fi
-  rm -rf "$ARTIFACTS/gui-$RID"
+  cp -R "$GUI"/*.app "$STAGE/"
+  rm -rf "$GUI"
+
+  # ditto rather than zip: it keeps the bundle's symlinks and executable bits intact.
+  # No --sequesterRsrc, which would add a __MACOSX folder and is what Apple's notarisation
+  # instructions leave out too.
+  ditto -c -k --keepParent "$STAGE" "$ARTIFACTS/$NAME.zip"
 done
 
 echo
-echo "Built:"
-find "$ARTIFACTS" -maxdepth 2 -name "rh-transfer" -o -maxdepth 2 -name "*.app" | sort
+echo "Version $VERSION"
+ls -1 "$ARTIFACTS"/*.zip
 
 cat <<'NOTE'
 
-Before sending a build to anyone, sign and notarise the .app:
+Sign and notarise before sending a build to anyone, or Gatekeeper will refuse to open it:
 
   codesign --deep --force --options runtime --timestamp \
-    --sign "Developer ID Application: ..." artifacts/osx-arm64/RhTransfer.Gui.app
-  xcrun notarytool submit ... --wait
-  xcrun stapler staple artifacts/osx-arm64/RhTransfer.Gui.app
-
-Without this Gatekeeper refuses to open it.
+    --sign "Developer ID Application: ..." "artifacts/<name>/Rhino Settings Transfer.app"
+  xcrun notarytool submit <zip> --wait ...
+  xcrun stapler staple "artifacts/<name>/Rhino Settings Transfer.app"
 NOTE

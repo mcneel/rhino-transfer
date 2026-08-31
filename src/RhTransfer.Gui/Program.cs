@@ -12,7 +12,7 @@ public static class Program
   [STAThread]
   public static void Main()
   {
-    new Application().Run(new MainForm(RhinoRoot.ForCurrentUser()));
+    new Application(Eto.Platform.Detect).Run(new MainForm(RhinoRoot.ForCurrentUser()));
   }
 
 }

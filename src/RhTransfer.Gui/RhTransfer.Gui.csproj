@@ -1,35 +1,22 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Eto.Forms/2.11.0">
+
+  <!--
+    The Eto SDK picks the backend from the host OS or the runtime identifier (Wpf on Windows,
+    Mac64 on macOS, Gtk on Linux), adds the matching platform package, appends the -windows
+    target framework suffix that the Windows backends require, and keeps a separate obj and bin
+    per platform. Set BuildPlatform to override it.
+  -->
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>RhTransfer.Gui</RootNamespace>
     <AssemblyName>RhinoSettingsTransfer</AssemblyName>
-    <ApplicationTitle>Rhino Settings Transfer</ApplicationTitle>
+    <MacBundleName>Rhino Settings Transfer</MacBundleName>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Eto.Forms" Version="2.11.0" />
-  </ItemGroup>
-
-  <!--
-    One platform assembly per operating system. Eto.Platform.Mac64 carries its own bindings, so a
-    macOS build needs no workload; Wpf is only resolvable on Windows.
-  -->
-  <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">
-    <!-- Eto builds the .app bundle itself and needs to know which architectures to build it for. -->
-    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
-  </PropertyGroup>
-
-  <ItemGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">
-    <PackageReference Include="Eto.Platform.Mac64" Version="2.11.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">
-    <PackageReference Include="Eto.Platform.Wpf" Version="2.11.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">
+  <!-- BuildPlatform is not set until the SDK's targets run, so key the bundle files off the OS. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <None Include="Info.plist" />
     <Content Include="Icon.icns">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

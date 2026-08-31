@@ -12,6 +12,11 @@
     <Product>Rhino Settings Transfer</Product>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Embedded rather than a loose .pdb, so a release folder is just the things you run. -->
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
   <PropertyGroup>
     <!--
       CS8524 fires when a switch over an enum handles every named member but not an out of range
