@@ -25,12 +25,20 @@
     not an option here: it fails in Eto's bundling step, and MonoMac registers Objective-C types
     at runtime.
   -->
+  <!--
+    Trimmed on macOS only: 83 MB down to 31 MB. TrimMode partial touches only assemblies that
+    opt in, which is the .NET libraries and not Eto or MonoMac, so Eto keeps its own handler
+    reflection.
+
+    Not on Windows. Windows Forms is not trim compatible: the trimmer strips the COM interop
+    types RichTextBox needs, and Eto's TextArea is a RichTextBox, so the window died with an
+    InvalidCastException in RichTextBox.UpdateOleCallback the moment it drew.
+
+    The self contained check matters too, because Eto's macOS bundling runs an inner build that
+    is not self contained and trimming there fails with NETSDK1102.
+  -->
   <PropertyGroup>
-    <!--
-      Only when self contained. Eto's macOS bundling runs an inner build that is not, and
-      trimming there fails the whole build with NETSDK1102.
-    -->
-    <PublishTrimmed Condition="'$(SelfContained)' == 'true'">true</PublishTrimmed>
+    <PublishTrimmed Condition="'$(SelfContained)' == 'true' and $(RuntimeIdentifier.StartsWith('osx'))">true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
     <NoWarn>$(NoWarn);IL2104;IL2026;IL2072;IL2075</NoWarn>
   </PropertyGroup>
