@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Authors>Robert McNeel &amp; Associates</Authors>
     <Product>Rhino Settings Transfer</Product>
   </PropertyGroup>
