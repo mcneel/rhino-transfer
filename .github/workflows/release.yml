@@ -101,12 +101,16 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           notes=$(cat <<'END'
-          Download the archive for your machine, unzip it, and run either the window
-          (**Rhino Settings Transfer**) or the command line (`rh-transfer`).
+          Two downloads per machine, pick the one you want:
+
+          - `rh-transfer-gui-...` is the window, **Rhino Settings Transfer**. Unzip it and run it.
+          - `rh-transfer-cli-...` is the command line, `rh-transfer`. Unzip it and put it on your PATH.
+
+          On macOS take `osx-arm64` for Apple silicon and `osx-x64` for Intel.
 
           Close Rhino before importing. Personal details are always removed on export.
 
-          The macOS build is not signed or notarised, so Gatekeeper will block it on first run:
+          The macOS builds are not signed or notarised, so Gatekeeper will block them on first run:
           right click the app and choose Open, or `xattr -dr com.apple.quarantine <the app>`.
           END
           )

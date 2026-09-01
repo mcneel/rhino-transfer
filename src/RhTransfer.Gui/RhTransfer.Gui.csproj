@@ -26,6 +26,29 @@
     at runtime.
   -->
   <!--
+    How the runtime is carried, which differs by platform because Rhino does.
+
+    Windows: Rhino's installer puts the .NET Windows Desktop Runtime on the machine as a vital,
+    permanent, per machine prerequisite (installer/Bootstrapper/Bundle.wxs). Rhino 8 brings
+    8.0.14 and Rhino 9 brings 10.0.2, and it survives uninstalling Rhino. Since this tool refuses
+    to import into anything older than Rhino 8, a usable machine already has a runtime, so the
+    window does not need to carry one. LatestMajor is what lets a net8.0 build run on the .NET 10
+    that Rhino 9 installs; the default policy will not cross a major version.
+
+    macOS: Rhino keeps its runtime privately inside the app bundle
+    (Rhino 8.app/Contents/Frameworks/RhCore.framework/.../dotnet/), so nothing is installed
+    machine wide and the app has to bring its own.
+  -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
+    <SelfContained>false</SelfContained>
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('osx'))">
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
+  <!--
     Trimmed on macOS only: 83 MB down to 31 MB. TrimMode partial touches only assemblies that
     opt in, which is the .NET libraries and not Eto or MonoMac, so Eto keeps its own handler
     reflection.
