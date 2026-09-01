@@ -18,9 +18,9 @@ for RID in osx-arm64 osx-x64; do
   echo "==> $RID"
   mkdir -p "$STAGE"
 
+  # Ahead of time compilation already produces one native binary, so no single file switch.
   dotnet publish src/RhTransfer.Cli \
-    -c Release -r "$RID" --self-contained \
-    -p:PublishSingleFile=true \
+    -c Release -r "$RID" \
     -o "$STAGE" --nologo -v quiet
 
   dotnet publish src/RhTransfer.Gui \
@@ -29,6 +29,10 @@ for RID in osx-arm64 osx-x64; do
 
   cp -R "$GUI"/*.app "$STAGE/"
   rm -rf "$GUI"
+
+  # Ahead of time compilation leaves its debug symbols beside the binary, and they are bigger
+  # than everything else put together.
+  rm -rf "$STAGE"/*.dsym
 
   # ditto rather than zip: it keeps the bundle's symlinks and executable bits intact.
   # No --sequesterRsrc, which would add a __MACOSX folder and is what Apple's notarisation

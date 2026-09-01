@@ -15,6 +15,26 @@
     <MacBundleName>Rhino Settings Transfer</MacBundleName>
   </PropertyGroup>
 
+  <!--
+    Trim the framework out of the published bundle: 83 MB down to 31 MB. TrimMode partial only
+    touches assemblies that opt in, which is the .NET libraries and not Eto or MonoMac, so Eto's
+    reflection over its own handler types is left alone.
+
+    Eto and MonoMac still raise trim analyser warnings about their own code, which our warnings
+    as errors setting would otherwise turn into a failed publish. Ahead of time compilation is
+    not an option here: it fails in Eto's bundling step, and MonoMac registers Objective-C types
+    at runtime.
+  -->
+  <PropertyGroup>
+    <!--
+      Only when self contained. Eto's macOS bundling runs an inner build that is not, and
+      trimming there fails the whole build with NETSDK1102.
+    -->
+    <PublishTrimmed Condition="'$(SelfContained)' == 'true'">true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <NoWarn>$(NoWarn);IL2104;IL2026;IL2072;IL2075</NoWarn>
+  </PropertyGroup>
+
   <!-- BuildPlatform is not set until the SDK's targets run, so key the bundle files off the OS. -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <None Include="Info.plist" />

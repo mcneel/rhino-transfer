@@ -7,6 +7,16 @@
     <AssemblyName>rh-transfer</AssemblyName>
   </PropertyGroup>
 
+  <!--
+    Ahead of time compilation. A self contained build carries the whole .NET runtime and comes to
+    70 MB; this is 10 MB and starts faster. Nothing here reflects over types at runtime: the one
+    thing that did, the archive's JSON provenance, now uses the source generator.
+  -->
+  <PropertyGroup>
+    <PublishAot>true</PublishAot>
+    <StackTraceSupport>false</StackTraceSupport>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RhTransfer.Core\RhTransfer.Core.csproj" />
   </ItemGroup>

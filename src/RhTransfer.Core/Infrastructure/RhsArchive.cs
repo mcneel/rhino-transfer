@@ -17,8 +17,6 @@ public static class RhsArchive
 
   public const string Extension = ".rhs";
 
-  private static JsonSerializerOptions JsonOptions { get; } = new() { WriteIndented = false };
-
   public static string DefaultFileName(RhinoVersion version) => $"Settings_{version.Major}_{OsName}{Extension}";
 
   public static string OsName
@@ -42,7 +40,7 @@ public static class RhsArchive
 
     using (ZipArchive archive = ZipFile.Open(outputPath, ZipArchiveMode.Create))
     {
-      archive.Comment = JsonSerializer.Serialize(metadata, JsonOptions);
+      archive.Comment = JsonSerializer.Serialize(metadata, RhsMetadataContext.Default.RhsMetadata);
 
       foreach (string file in DirectoryCopier.EnumerateFiles(stagingFolder, log))
       {
@@ -112,7 +110,7 @@ public static class RhsArchive
       using ZipArchive archive = ZipFile.OpenRead(archivePath);
       if (string.IsNullOrWhiteSpace(archive.Comment)) return null;
 
-      return JsonSerializer.Deserialize<RhsMetadata>(archive.Comment, JsonOptions);
+      return JsonSerializer.Deserialize(archive.Comment, RhsMetadataContext.Default.RhsMetadata);
     }
     catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException)
     {
