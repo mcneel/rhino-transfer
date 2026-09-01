@@ -34,6 +34,13 @@ for RID in osx-arm64 osx-x64; do
   # than everything else put together.
   rm -rf "$STAGE"/*.dsym
 
+  # .NET ad-hoc signs the bare apphost at publish time, then Eto assembles the .app around it,
+  # which leaves a signature describing resources that are no longer there. macOS reports that
+  # as "damaged and can't be opened", which reads like corruption but is a signature mismatch.
+  # Re-signing the finished bundle binds Info.plist and regenerates _CodeSignature.
+  codesign --force --deep --sign - "$STAGE"/*.app
+  codesign --verify --deep --strict "$STAGE"/*.app
+
   # ditto rather than zip: it keeps the bundle's symlinks and executable bits intact.
   # No --sequesterRsrc, which would add a __MACOSX folder and is what Apple's notarisation
   # instructions leave out too.
