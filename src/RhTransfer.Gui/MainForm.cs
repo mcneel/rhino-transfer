@@ -23,6 +23,8 @@ public sealed class MainForm : Form
 
   private RhinoRoot Root { get; }
 
+  private RhinoInventory Inventory { get; }
+
   private ShellState State { get; set; }
 
   private DropDown Versions { get; } = new();
@@ -34,7 +36,8 @@ public sealed class MainForm : Form
   public MainForm(RhinoRoot root)
   {
     Root = root;
-    State = ShellState.Initial(root.FindDataFolders());
+    Inventory = new RhinoInventory(root);
+    State = ShellState.Initial(Inventory.All());
 
     Title = "Rhino Settings Transfer";
     MinimumSize = new Size(560, 420);
@@ -94,21 +97,21 @@ public sealed class MainForm : Form
   /// </summary>
   private void Render()
   {
-    if (Versions.Items.Count != State.Folders.Count)
+    if (Versions.Items.Count != State.Exportable.Count)
     {
       Versions.Items.Clear();
 
-      foreach (RhinoDataFolder folder in State.Folders)
+      foreach (RhinoInstall install in State.Exportable)
       {
-        Versions.Items.Add($"Rhino {folder.Version.Major}");
+        Versions.Items.Add(install.ToString());
       }
     }
 
     Versions.SelectedIndex = State.SelectedIndex;
-    Versions.Enabled = !State.IsBusy && State.Folders.Count > 0;
+    Versions.Enabled = !State.IsBusy && State.Exportable.Count > 0;
 
-    ExportButton.Enabled = State.CanTransfer;
-    ImportButton.Enabled = !State.IsBusy && State.Folders.Count > 0;
+    ExportButton.Enabled = State.CanExport;
+    ImportButton.Enabled = State.CanImport;
 
     StatusLabel.Text = State.Status;
     Log.Text = string.Join(Environment.NewLine, State.Messages.Select(m => m.ToString()));
@@ -122,7 +125,9 @@ public sealed class MainForm : Form
 
   private async Task ExportAsync()
   {
-    if (State.Selected is not RhinoDataFolder source) return;
+    if (State.Selected is not RhinoInstall selected) return;
+
+    RhinoDataFolder source = selected.DataFolder;
 
     using SaveFileDialog dialog = new()
     {
@@ -154,10 +159,11 @@ public sealed class MainForm : Form
 
     string archive = dialog.FileName;
 
-    RhinoVersion version = ChooseTargetVersion();
-    RhinoDataFolder target = Root.DataFolderFor(version);
+    RhsMetadata? metadata = RhsArchive.ReadMetadata(archive);
+    ImportTargetDialog chooser = new(archive, State.ImportTargets, metadata, Inventory.PreferredTarget(metadata));
+    if (chooser.ShowModal(this) is not RhinoInstall destination) return;
 
-    if (!Confirm(archive, target)) return;
+    RhinoDataFolder target = destination.DataFolder;
 
     Transition(State.Working($"Importing into Rhino {target.Version.Major}..."));
 
@@ -169,20 +175,6 @@ public sealed class MainForm : Form
       : "Imported. Start Rhino to pick up the new settings. Your previous settings were backed up.";
 
     Transition(State.Finished(report, success, "Import failed. Nothing was changed."));
-  }
-
-  private RhinoVersion ChooseTargetVersion()
-    => State.Selected?.Version ?? new RhinoVersion(8);
-
-  private bool Confirm(string archive, RhinoDataFolder target)
-  {
-    string question =
-      $"Replace the settings for Rhino {target.Version.Major} with {Path.GetFileName(archive)}?"
-      + Environment.NewLine + Environment.NewLine
-      + "Your current settings will be backed up first, and Rhino must be closed.";
-
-    return MessageBox.Show(this, question, "Import Rhino settings", MessageBoxButtons.OKCancel, MessageBoxType.Question)
-      == DialogResult.Ok;
   }
 
   private static string EnsureExtension(string fileName)

@@ -15,9 +15,16 @@ public sealed class SettingsImporter
 
   private BackupStore Backups { get; }
 
-  public SettingsImporter(BackupStore backups)
+  /// <summary>
+  /// Which Rhino processes are running. Injected because it is ambient machine state: a test
+  /// must not pass or fail depending on whether the developer happens to have Rhino open.
+  /// </summary>
+  private Func<IReadOnlyList<string>> FindRunningRhino { get; }
+
+  public SettingsImporter(BackupStore backups, Func<IReadOnlyList<string>>? findRunningRhino = null)
   {
     Backups = backups;
+    FindRunningRhino = findRunningRhino ?? RhinoProcessGuard.FindRunning;
   }
 
   public TransferReport Import(string archivePath, RhinoDataFolder target, bool isDryRun = false)
@@ -30,6 +37,9 @@ public sealed class SettingsImporter
     if (!RhsArchive.IsReadable(archivePath, out string reason))
       return log.ToFailure($"{archivePath} is not a readable settings file: {reason}");
 
+    if (!TransferLimits.CanImportInto(target.Version))
+      return log.ToFailure($"settings cannot be written into Rhino {target.Version.Major}. A settings file uses the window layout format introduced in Rhino {TransferLimits.EarliestImportTarget.Major}.");
+
     ReportProvenance(archivePath, target, log);
 
     if (isDryRun)
@@ -38,7 +48,7 @@ public sealed class SettingsImporter
       return log.ToReport(0, 0);
     }
 
-    IReadOnlyList<string> running = RhinoProcessGuard.FindRunning();
+    IReadOnlyList<string> running = FindRunningRhino();
     if (running.Count > 0)
       return log.ToFailure($"{string.Join(" and ", running)} is running. Close Rhino and try again, or it will overwrite these settings when it quits.");
 
@@ -86,7 +96,7 @@ public sealed class SettingsImporter
   {
     TransferLog log = new();
 
-    IReadOnlyList<string> running = RhinoProcessGuard.FindRunning();
+    IReadOnlyList<string> running = FindRunningRhino();
     if (running.Count > 0)
       return log.ToFailure($"{string.Join(" and ", running)} is running. Close Rhino and try again.");
 

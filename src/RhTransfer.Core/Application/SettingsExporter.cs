@@ -16,9 +16,13 @@ public sealed class SettingsExporter
 
   private string ToolVersion { get; }
 
-  public SettingsExporter(string toolVersion)
+  /// <summary>Injected so a test can ask what the answer would be on the other platform.</summary>
+  private bool IsWindows { get; }
+
+  public SettingsExporter(string toolVersion, bool? isWindows = null)
   {
     ToolVersion = toolVersion;
+    IsWindows = isWindows ?? OperatingSystem.IsWindows();
   }
 
   public TransferReport Export(RhinoDataFolder source, string outputPath, bool isDryRun = false)
@@ -27,6 +31,9 @@ public sealed class SettingsExporter
 
     if (!Directory.Exists(source.Path))
       return log.ToFailure($"{source.Path} does not exist");
+
+    if (!TransferLimits.CanExportFrom(source.Version, IsWindows))
+      return log.ToFailure($"Rhino {source.Version.Major} on this platform keeps its settings outside the settings folder, so there is nothing here to export.");
 
     string staging = Path.Combine(Path.GetTempPath(), "rh-transfer", Guid.NewGuid().ToString("n"));
 

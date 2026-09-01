@@ -27,6 +27,13 @@ public sealed class RoundTripTests
     </RhinoUI>
     """;
 
+  /// <summary>
+  /// An importer that believes Rhino is closed, so these tests do not depend on whether the
+  /// machine running them happens to have Rhino open.
+  /// </summary>
+  private static SettingsImporter NoRhinoRunning(RhinoRoot root)
+    => new(new BackupStore(root), () => []);
+
   private static string BuildSourceFolder(TempFolder temp, out string customToolbar)
   {
     string data = temp.Folder("source/8.0");
@@ -71,7 +78,7 @@ public sealed class RoundTripTests
     RhinoRoot targetRoot = new(temp.Folder("target"));
     RhinoDataFolder target = targetRoot.DataFolderFor(new RhinoVersion(8));
 
-    TransferReport imported = new SettingsImporter(new BackupStore(targetRoot)).Import(archive, target);
+    TransferReport imported = NoRhinoRunning(targetRoot).Import(archive, target);
     Assert.True(imported.IsSuccess, string.Join("; ", imported.Errors.Select(e => e.Text)));
 
     Assert.True(File.Exists(Path.Combine(target.SettingsPath, "settings-Scheme__Default.xml")));
@@ -143,7 +150,7 @@ public sealed class RoundTripTests
     temp.File("target/8.0/License Manager/licence.lic", "TARGET LICENCE");
 
     RhinoDataFolder target = targetRoot.DataFolderFor(new RhinoVersion(8));
-    TransferReport report = new SettingsImporter(new BackupStore(targetRoot)).Import(archive, target);
+    TransferReport report = NoRhinoRunning(targetRoot).Import(archive, target);
 
     Assert.True(report.IsSuccess);
     Assert.NotNull(report.BackupPath);
@@ -210,7 +217,7 @@ public sealed class RoundTripTests
     RhinoRoot targetRoot = new(temp.Folder("target"));
     RhinoDataFolder target = targetRoot.DataFolderFor(new RhinoVersion(8));
 
-    TransferReport report = new SettingsImporter(new BackupStore(targetRoot)).Import(archive, target);
+    TransferReport report = NoRhinoRunning(targetRoot).Import(archive, target);
 
     Assert.True(report.IsSuccess);
     Assert.Contains(report.Warnings, w => w.Text.Contains("Gone.rui") && w.Text.Contains("package"));
@@ -243,7 +250,7 @@ public sealed class RoundTripTests
     string installed = temp.File("target/packages/8.0/Gone/1.0/Gone.rui", "toolbar");
     RhinoDataFolder target = targetRoot.DataFolderFor(new RhinoVersion(8));
 
-    TransferReport report = new SettingsImporter(new BackupStore(targetRoot)).Import(archive, target);
+    TransferReport report = NoRhinoRunning(targetRoot).Import(archive, target);
 
     Assert.True(report.IsSuccess);
     Assert.Empty(report.Warnings);
@@ -253,6 +260,56 @@ public sealed class RoundTripTests
       .Single();
 
     Assert.Equal(installed, reference);
+  }
+
+  /// <summary>
+  /// The floor is enforced by the importer, not just hidden in the interface, so neither front
+  /// end can forget it.
+  /// </summary>
+  [Fact]
+  public void ImportingIntoRhino7IsRefused()
+  {
+    using TempFolder temp = new();
+
+    string sourcePath = BuildSourceFolder(temp, out _);
+    RhinoDataFolder source = new(new RhinoVersion(8), sourcePath);
+
+    string archive = Path.Combine(temp.Path, "settings_8.rhs");
+    new SettingsExporter("1.0.0").Export(source, archive);
+
+    RhinoRoot targetRoot = new(temp.Folder("target"));
+    RhinoDataFolder seven = targetRoot.DataFolderFor(new RhinoVersion(7));
+
+    TransferReport report = NoRhinoRunning(targetRoot).Import(archive, seven);
+
+    Assert.False(report.IsSuccess);
+    Assert.Contains(report.Errors, e => e.Text.Contains("Rhino 7"));
+    Assert.False(Directory.Exists(Path.Combine(seven.Path, "settings")));
+  }
+
+  /// <summary>
+  /// The exporter enforces the platform limit itself, so neither front end can offer a Rhino 7
+  /// export on macOS and quietly produce an empty settings file.
+  /// </summary>
+  [Fact]
+  public void ExportingRhino7OnMacIsRefused()
+  {
+    using TempFolder temp = new();
+
+    string sourcePath = BuildSourceFolder(temp, out _);
+    RhinoDataFolder seven = new(new RhinoVersion(7), sourcePath);
+
+    string archive = Path.Combine(temp.Path, "settings_7.rhs");
+
+    TransferReport onMac = new SettingsExporter("1.0.0", isWindows: false).Export(seven, archive);
+
+    Assert.False(onMac.IsSuccess);
+    Assert.False(File.Exists(archive));
+
+    TransferReport onWindows = new SettingsExporter("1.0.0", isWindows: true).Export(seven, archive);
+
+    Assert.True(onWindows.IsSuccess);
+    Assert.True(File.Exists(archive));
   }
 
 }

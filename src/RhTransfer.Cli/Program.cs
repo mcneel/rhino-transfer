@@ -50,18 +50,16 @@ public static class Program
     Console.WriteLine($"Rhino data folder: {root.Path}");
     Console.WriteLine();
 
-    IReadOnlyList<RhinoDataFolder> folders = root.FindDataFolders();
-
-    if (folders.Count == 0)
+    if (new RhinoInventory(root).All().Count == 0)
     {
-      Console.WriteLine("No Rhino settings found.");
+      Console.WriteLine("No Rhino found.");
       return ExitSuccess;
     }
 
-    Console.WriteLine("Installed versions:");
-    foreach (RhinoDataFolder folder in folders)
+    Console.WriteLine("Rhino versions:");
+    foreach (RhinoInstall install in new RhinoInventory(root).All())
     {
-      Console.WriteLine($"  {folder.Version.Major,2}  {folder.Path}");
+      Console.WriteLine($"  {install,-38}  {install.DataFolder.Path}");
     }
 
     IReadOnlyList<BackupFolder> backups = root.FindBackups();
