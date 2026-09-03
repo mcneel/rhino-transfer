@@ -68,6 +68,18 @@ public sealed class RuiPathMapper
   /// <summary>Where an external toolbar file is staged, matching what <see cref="ToArchivePath"/> writes.</summary>
   public static string ExternalEntry(string localPath) => $"{ExternalFolder}/{LocalFileName(localPath)}";
 
+  /// <summary>
+  /// Where the file behind <see cref="ToArchivePath"/> physically sits in the archive. Imported
+  /// toolbar references are written relative to the settings folder rather than the archive
+  /// root, so the reference and the entry are not always the same string.
+  /// </summary>
+  public string ToArchiveEntry(string localPath)
+  {
+    string archivePath = ToArchivePath(localPath);
+
+    return ClassifyArchive(archivePath) == RuiLocation.ImportedRui ? $"settings/{archivePath}" : archivePath;
+  }
+
   public RuiLocation? ClassifyArchive(string archivePath)
   {
     string normalised = archivePath.Replace('\\', '/');
@@ -99,9 +111,20 @@ public sealed class RuiPathMapper
       RuiLocation.External => Path.Combine(Data.Path, ExternalFolder, ArchiveTail(archivePath, ExternalFolder)),
       RuiLocation.DefaultUi => Path.Combine(Data.UiPath, ArchiveTail(archivePath, "UI")),
       RuiLocation.ImportedRui => Path.Combine(SettingsFolder, ToNativeArchivePath(archivePath)),
-      RuiLocation.Package => FindByName(Path.Combine(Data.PackagesPath, Data.Version.FolderName), ArchiveFileName(archivePath)) ?? archivePath,
-      RuiLocation.PlugIn => FindByName(Data.PlugInsPath, ArchiveFileName(archivePath)) ?? archivePath
+      RuiLocation.Package => FindByName(Path.Combine(Data.PackagesPath, Data.Version.FolderName), ArchiveFileName(archivePath)) ?? StagedExternal(archivePath) ?? archivePath,
+      RuiLocation.PlugIn => FindByName(Data.PlugInsPath, ArchiveFileName(archivePath)) ?? StagedExternal(archivePath) ?? archivePath
     };
+  }
+
+  /// <summary>
+  /// The copy the export staged under external/, for a package or plug-in toolbar with nothing
+  /// installed here to match it.
+  /// </summary>
+  private string? StagedExternal(string archivePath)
+  {
+    string candidate = Path.Combine(Data.Path, ExternalFolder, ArchiveFileName(archivePath));
+
+    return File.Exists(candidate) ? candidate : null;
   }
 
   /// <summary>

@@ -180,17 +180,10 @@ public sealed class RoundTripTests
     Assert.Equal(RhsMetadata.ToolName, metadata.Tool);
   }
 
-  /// <summary>
-  /// A package toolbar is referenced but never carried, the same as Rhino 9: the package brings
-  /// it back when it is installed. Importing without the package must say so, not fail silently.
-  /// </summary>
-  [Fact]
-  public void MissingPackageToolbarIsReported()
+  private static RhinoDataFolder BuildSourceFolderWithPackageToolbar(TempFolder temp)
   {
-    using TempFolder temp = new();
-
     string sourceRoot = temp.Folder("source");
-    string packageToolbar = temp.File("source/packages/8.0/Gone/1.0/Gone.rui", "toolbar");
+    string packageToolbar = temp.File("source/packages/8.0/Gone/1.0/Gone.rui", "package toolbar");
 
     temp.File("source/8.0/settings/settings-Scheme__Default.xml", """
       <settings id="2.0"><settings /></settings>
@@ -199,7 +192,20 @@ public sealed class RoundTripTests
     temp.File("source/8.0/settings/Scheme__Default/containers.xml",
       $"""<files><file_name source="PlugInFolder">{packageToolbar}</file_name></files>""");
 
-    RhinoDataFolder source = new(new RhinoVersion(8), Path.Combine(sourceRoot, "8.0"));
+    return new RhinoDataFolder(new RhinoVersion(8), Path.Combine(sourceRoot, "8.0"));
+  }
+
+  /// <summary>
+  /// The packages folder sits beside the version folders, so the folder copy never reaches it.
+  /// The reference stays a package path, but the file rides along under external/ so a machine
+  /// without the package still gets the toolbar.
+  /// </summary>
+  [Fact]
+  public void PackageToolbarIsCarriedAndStillResolvesWithoutThePackage()
+  {
+    using TempFolder temp = new();
+
+    RhinoDataFolder source = BuildSourceFolderWithPackageToolbar(temp);
 
     string archive = Path.Combine(temp.Path, "settings_8.rhs");
     Assert.True(new SettingsExporter("1.0.0").Export(source, archive).IsSuccess);
@@ -212,7 +218,7 @@ public sealed class RoundTripTests
       .Single();
 
     Assert.Equal("packages/8.0/Gone/1.0/Gone.rui", exportedReference);
-    Assert.False(File.Exists(Path.Combine(peek, "packages", "8.0", "Gone", "1.0", "Gone.rui")));
+    Assert.True(File.Exists(Path.Combine(peek, "external", "Gone.rui")));
 
     RhinoRoot targetRoot = new(temp.Folder("target"));
     RhinoDataFolder target = targetRoot.DataFolderFor(new RhinoVersion(8));
@@ -220,28 +226,26 @@ public sealed class RoundTripTests
     TransferReport report = NoRhinoRunning(targetRoot).Import(archive, target);
 
     Assert.True(report.IsSuccess);
-    Assert.Contains(report.Warnings, w => w.Text.Contains("Gone.rui") && w.Text.Contains("package"));
+    Assert.Empty(report.Warnings);
+
+    string reference = WindowLayoutFile
+      .ReadReferences(Path.Combine(target.SettingsPath, "Scheme__Default", "containers.xml"))
+      .Single();
+
+    Assert.Equal(Path.Combine(target.Path, "external", "Gone.rui"), reference);
+    Assert.Equal("package toolbar", File.ReadAllText(reference));
   }
 
   /// <summary>
-  /// The same reference resolves silently when the package is installed on the target.
+  /// The installed package wins over the copy under external/, so a newer toolbar shipped by the
+  /// package is not replaced by the exporting machine's older one.
   /// </summary>
   [Fact]
   public void PackageToolbarRelinksWhenThePackageIsThere()
   {
     using TempFolder temp = new();
 
-    string sourceRoot = temp.Folder("source");
-    string packageToolbar = temp.File("source/packages/8.0/Gone/1.0/Gone.rui", "toolbar");
-
-    temp.File("source/8.0/settings/settings-Scheme__Default.xml", """
-      <settings id="2.0"><settings /></settings>
-      """);
-
-    temp.File("source/8.0/settings/Scheme__Default/containers.xml",
-      $"""<files><file_name source="PlugInFolder">{packageToolbar}</file_name></files>""");
-
-    RhinoDataFolder source = new(new RhinoVersion(8), Path.Combine(sourceRoot, "8.0"));
+    RhinoDataFolder source = BuildSourceFolderWithPackageToolbar(temp);
 
     string archive = Path.Combine(temp.Path, "settings_8.rhs");
     new SettingsExporter("1.0.0").Export(source, archive);

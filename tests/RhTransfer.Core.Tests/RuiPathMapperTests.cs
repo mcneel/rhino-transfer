@@ -84,6 +84,44 @@ public sealed class RuiPathMapperTests
   }
 
   /// <summary>
+  /// The archive keeps the imported reference relative to the settings folder, while the file
+  /// itself sits under settings/ in the archive. An export has to look in the right place to
+  /// know it does not need to stage the file again.
+  /// </summary>
+  [Fact]
+  public void ImportedToolbarEntrySitsUnderTheSettingsFolder()
+  {
+    using TempFolder temp = new();
+    RhinoDataFolder data = DataFolder(temp);
+    RuiPathMapper mapper = new(data);
+
+    string imported = Path.Combine(data.SettingsPath, "Scheme__Default", "imported_rui_files", "grabbed.rui");
+
+    Assert.Equal("settings/Scheme__Default/imported_rui_files/grabbed.rui", mapper.ToArchiveEntry(imported));
+    Assert.Equal("UI/default.rui", mapper.ToArchiveEntry(Path.Combine(data.UiPath, "default.rui")));
+  }
+
+  /// <summary>
+  /// A package toolbar reference resolves to the copy the export staged under external/ when the
+  /// package itself is not installed here, and to the installed one when it is.
+  /// </summary>
+  [Fact]
+  public void PackageToolbarFallsBackToTheStagedCopy()
+  {
+    using TempFolder temp = new();
+    RhinoDataFolder data = DataFolder(temp);
+    string staged = temp.File("8.0/external/Gone.rui", "toolbar");
+
+    RuiPathMapper mapper = new(data);
+
+    Assert.Equal(staged, mapper.ToLocalPath("packages/8.0/Gone/1.0/Gone.rui"));
+
+    string installed = temp.File("packages/8.0/Gone/1.1/Gone.rui", "toolbar");
+
+    Assert.Equal(installed, mapper.ToLocalPath("packages/8.0/Gone/1.0/Gone.rui"));
+  }
+
+  /// <summary>
   /// Rhino 9's own Windows exports leave absolute Windows paths in containers.xml. Importing one
   /// on another machine has to find the file by name or the toolbars come up empty.
   /// </summary>

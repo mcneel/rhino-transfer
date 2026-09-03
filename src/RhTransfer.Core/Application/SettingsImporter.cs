@@ -149,9 +149,9 @@ public sealed class SettingsImporter
   }
 
   /// <summary>
-  /// A layout can name a toolbar this machine does not have. Package toolbars are the usual
-  /// case and are deliberately not carried, the same as Rhino 9: installing the package brings
-  /// the toolbar with it. Say so rather than leaving the user to wonder why a toolbar is empty.
+  /// A layout can name a toolbar this machine does not have and the archive did not carry, which
+  /// is what a Rhino 9 export leaves behind for a package toolbar. Say so rather than leaving the
+  /// user to wonder why a toolbar is empty.
   /// </summary>
   private static void ReportUnresolved(IReadOnlyCollection<string> unresolved, TransferLog log)
   {

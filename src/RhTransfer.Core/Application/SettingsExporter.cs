@@ -44,7 +44,7 @@ public sealed class SettingsExporter
       if (copied.FileCount == 0)
         return log.ToFailure($"nothing to export from {source.Path}");
 
-      CopyResult external = CollectExternalToolbars(source, staging, log);
+      CopyResult external = CollectMissingToolbars(source, staging, log);
       RewriteLayouts(source, staging, log);
       Scrub(staging, log);
 
@@ -82,11 +82,15 @@ public sealed class SettingsExporter
   }
 
   /// <summary>
-  /// Toolbar files a layout points at that live outside the data folder, for example on the
-  /// user's Desktop. They go under external/ so the other machine has something to resolve.
-  /// Package toolbars are deliberately left out: those come back with the package itself.
+  /// Every toolbar file a layout points at that the folder copy did not already bring: one on
+  /// the user's Desktop, and every package toolbar, because packages live beside the version
+  /// folders rather than inside one. They go under external/ so the other machine has something
+  /// to resolve even when it has no matching package installed.
+  ///
+  /// The reference itself still rewrites to its real archive path, so a target that does have
+  /// the package keeps using the installed toolbar and only falls back to this copy.
   /// </summary>
-  private static CopyResult CollectExternalToolbars(RhinoDataFolder source, string staging, TransferLog log)
+  private static CopyResult CollectMissingToolbars(RhinoDataFolder source, string staging, TransferLog log)
   {
     RuiPathMapper mapper = new(source);
     HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
@@ -96,8 +100,10 @@ public sealed class SettingsExporter
     {
       foreach (string reference in WindowLayoutFile.ReadReferences(layout))
       {
-        if (mapper.ClassifyLocal(reference) != RuiLocation.External) continue;
         if (!seen.Add(reference)) continue;
+
+        string entry = mapper.ToArchiveEntry(reference).Replace('/', Path.DirectorySeparatorChar);
+        if (File.Exists(Path.Combine(staging, entry))) continue;
 
         if (!File.Exists(reference))
         {
@@ -112,7 +118,8 @@ public sealed class SettingsExporter
       }
     }
 
-    if (total.FileCount > 0) log.Info($"included {total.FileCount} custom toolbar files");
+    if (total.FileCount > 0)
+      log.Info($"included {total.FileCount} toolbar {(total.FileCount == 1 ? "file" : "files")} from outside the settings folder");
 
     return total;
   }
